@@ -149,6 +149,7 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
 
     for ano_relativo in range(1, anos + 15 + 1):
         ano_real = ano_inicio + ano_relativo - 1
+        faturamento_bruto_anual = 0
         faturamento_liquido_anual = 0
         numero_favas_total = 0
         peso_favas_verdes_total = 0
@@ -174,6 +175,7 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
             valor_extrato = resultado["volume_extrato"] * (
                 PRECO_EXTRATO_POR_TONELADA / 1000
             )
+            faturamento_bruto_anual += valor_extrato
             faturamento_liquido_anual += valor_extrato * 0.213
 
             numero_favas_total += resultado["numero_favas"]
@@ -186,6 +188,7 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
                     "Ano de Implementação": ano_inicio + impl["ano_inicio"] - 1,
                     "Ano": ano_real,
                     "Número de Mudas": impl["num_mudas"],
+                    "Faturamento Bruto (US$)": valor_extrato,
                     "Faturamento Líquido (US$)": valor_extrato * 0.213,
                     "Área Necessária (ha)": calcular_area_necessaria(
                         impl["num_mudas"], sistema
@@ -202,6 +205,7 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
             {
                 "Ano": ano_real,
                 "Número de Mudas": mudas_por_ano[ano_relativo - 1],
+                "Faturamento Bruto (US$)": faturamento_bruto_anual,
                 "Faturamento Líquido (US$)": faturamento_liquido_anual,
                 "Faturamento Acumulado (US$)": faturamento_acumulado,
                 "Área Total Necessária (ha)": min(
@@ -290,6 +294,7 @@ if st.button("Gerar Plano de Ação"):
     st.dataframe(
         plano_acao.style.format(
             {
+                "Faturamento Bruto (US$)": "${:,.2f}",
                 "Faturamento Líquido (US$)": "${:,.2f}",
                 "Faturamento Acumulado (US$)": "${:,.2f}",
                 "Área Total Necessária (ha)": "{:,.2f}",
@@ -305,6 +310,7 @@ if st.button("Gerar Plano de Ação"):
     st.dataframe(
         resultados_detalhados.style.format(
             {
+                "Faturamento Bruto (US$)": "${:,.2f}",
                 "Faturamento Líquido (US$)": "${:,.2f}",
                 "Área Necessária (ha)": "{:,.2f}",
                 "Número de Favas": "{:,.0f}",
@@ -314,7 +320,6 @@ if st.button("Gerar Plano de Ação"):
             }
         )
     )
-
     # Gráfico de crescimento do número de mudas
     chart_mudas = (
         alt.Chart(plano_acao)
