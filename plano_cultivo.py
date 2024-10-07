@@ -147,6 +147,12 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
     faturamento_acumulado = 0
     area_total_maxima = calcular_area_necessaria(num_mudas_total, sistema)
 
+    # Definir margem de lucro líquida conforme o sistema de cultivo selecionado
+    if sistema == "SAF":
+        margem_lucro_liquido = 0.125  # 12.5% para SAF
+    else:
+        margem_lucro_liquido = 0.34  # 34% para semi-intensivo
+
     for ano_relativo in range(1, anos + 15 + 1):
         ano_real = ano_inicio + ano_relativo - 1
         faturamento_bruto_anual = 0
@@ -175,8 +181,15 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
             valor_extrato = resultado["volume_extrato"] * (
                 PRECO_EXTRATO_POR_TONELADA / 1000
             )
+
+            # Define a margem de lucro líquida conforme o sistema de cultivo
+            if sistema == "SAF":
+                margem_lucro_liquido = 0.125  # 12.5% para SAF
+            else:
+                margem_lucro_liquido = 0.34  # 34% para semi-intensivo
+
             faturamento_bruto_anual += valor_extrato
-            faturamento_liquido_anual += valor_extrato * 0.213
+            faturamento_liquido_anual += valor_extrato * margem_lucro_liquido
 
             numero_favas_total += resultado["numero_favas"]
             peso_favas_verdes_total += resultado["peso_favas_verdes"]
@@ -189,7 +202,7 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
                     "Ano": ano_real,
                     "Número de Mudas": impl["num_mudas"],
                     "Faturamento Bruto (US$)": valor_extrato,
-                    "Faturamento Líquido (US$)": valor_extrato * 0.213,
+                    "Faturamento Líquido (US$)": valor_extrato * margem_lucro_liquido,
                     "Área Necessária (ha)": calcular_area_necessaria(
                         impl["num_mudas"], sistema
                     ),
@@ -265,6 +278,12 @@ with col1:
     sistema = st.radio("Sistema de Cultivo", ["SAF", "Semi-intensivo"])
     usar_modelo_linear = st.checkbox("Usar modelo linear para anos 1 e 2", value=True)
 
+    # Definir margem de lucro conforme o sistema de cultivo selecionado
+    if sistema == "SAF":
+        margem_lucro_liquido = 0.125  # 12.5% para SAF
+    else:
+        margem_lucro_liquido = 0.34  # 34% para semi-intensivo
+
 # Coluna 2: Informações de mercado
 with col2:
     st.subheader("Informações de Mercado")
@@ -274,7 +293,10 @@ with col2:
     st.write("- Fava curada: US$ 139.75/kg")
     st.write("- Fava curada (unidade): US$ 0.56")
     st.write("- Extrato de baunilha: US$ 135,435.20 por tonelada")
-    st.write("- Margem de lucro: 21,30% do faturamento bruto")
+    st.write(
+        f"- Margem de lucro: {margem_lucro_liquido * 100:.2f}% do faturamento bruto"
+    )
+
 
 # Botão para gerar o plano de ação
 if st.button("Gerar Plano de Ação"):
