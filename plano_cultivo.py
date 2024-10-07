@@ -125,7 +125,14 @@ def gerar_excel(resultados_anuais, resultados_cumulativos):
     return output
 
 
-def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_inicio):
+def calcular_plano_acao(
+    num_mudas_inicial,
+    num_mudas_total,
+    anos,
+    percentual_saf,
+    percentual_semi_intensivo,
+    ano_inicio,
+):
     # Calcular a taxa de crescimento necessária
     taxa_crescimento = (num_mudas_total / num_mudas_inicial) ** (1 / (anos - 1))
 
@@ -145,13 +152,24 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
     resultados_plano = []
     resultados_detalhados = []
     faturamento_acumulado = 0
-    area_total_maxima = calcular_area_necessaria(num_mudas_total, sistema)
 
-    # Definir margem de lucro líquida conforme o sistema de cultivo selecionado
-    if sistema == "SAF":
-        margem_lucro_liquido = 0.125  # 12.5% para SAF
-    else:
-        margem_lucro_liquido = 0.34  # 34% para semi-intensivo
+    # Definir as margens de lucro dos sistemas
+    margem_lucro_saf = 0.125  # 12.5% para SAF
+    margem_lucro_semi_intensivo = 0.34  # 34% para semi-intensivo
+    margem_lucro_liquida = (
+        percentual_saf / 100 * margem_lucro_saf
+        + percentual_semi_intensivo / 100 * margem_lucro_semi_intensivo
+    )
+
+    # Calcular área necessária com base na combinação dos sistemas
+    area_por_muda_saf = 4 / 10000  # 4m² por muda no SAF, em hectares
+    area_por_muda_semi_intensivo = (
+        2.5 / 10000
+    )  # 2.5m² por muda no semi-intensivo, em hectares
+    area_total_maxima = num_mudas_total * (
+        percentual_saf / 100 * area_por_muda_saf
+        + percentual_semi_intensivo / 100 * area_por_muda_semi_intensivo
+    )
 
     for ano_relativo in range(1, anos + 15 + 1):
         ano_real = ano_inicio + ano_relativo - 1
@@ -181,15 +199,8 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
             valor_extrato = resultado["volume_extrato"] * (
                 PRECO_EXTRATO_POR_TONELADA / 1000
             )
-
-            # Define a margem de lucro líquida conforme o sistema de cultivo
-            if sistema == "SAF":
-                margem_lucro_liquido = 0.125  # 12.5% para SAF
-            else:
-                margem_lucro_liquido = 0.34  # 34% para semi-intensivo
-
             faturamento_bruto_anual += valor_extrato
-            faturamento_liquido_anual += valor_extrato * margem_lucro_liquido
+            faturamento_liquido_anual += valor_extrato * margem_lucro_liquida
 
             numero_favas_total += resultado["numero_favas"]
             peso_favas_verdes_total += resultado["peso_favas_verdes"]
@@ -202,9 +213,11 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
                     "Ano": ano_real,
                     "Número de Mudas": impl["num_mudas"],
                     "Faturamento Bruto (US$)": valor_extrato,
-                    "Faturamento Líquido (US$)": valor_extrato * margem_lucro_liquido,
-                    "Área Necessária (ha)": calcular_area_necessaria(
-                        impl["num_mudas"], sistema
+                    "Faturamento Líquido (US$)": valor_extrato * margem_lucro_liquida,
+                    "Área Necessária (ha)": impl["num_mudas"]
+                    * (
+                        percentual_saf / 100 * area_por_muda_saf
+                        + percentual_semi_intensivo / 100 * area_por_muda_semi_intensivo
                     ),
                     "Número de Favas": resultado["numero_favas"],
                     "Peso Favas Verdes (kg)": resultado["peso_favas_verdes"],
@@ -221,10 +234,7 @@ def calcular_plano_acao(num_mudas_inicial, num_mudas_total, anos, sistema, ano_i
                 "Faturamento Bruto (US$)": faturamento_bruto_anual,
                 "Faturamento Líquido (US$)": faturamento_liquido_anual,
                 "Faturamento Acumulado (US$)": faturamento_acumulado,
-                "Área Total Necessária (ha)": min(
-                    area_total_maxima,
-                    calcular_area_necessaria(mudas_por_ano[ano_relativo - 1], sistema),
-                ),
+                "Área Total Necessária (ha)": area_total_maxima,
                 "Número Total de Favas": numero_favas_total,
                 "Peso Total Favas Verdes (kg)": peso_favas_verdes_total,
                 "Peso Total Favas Curadas (kg)": peso_favas_curadas_total,
@@ -275,16 +285,22 @@ with col1:
     ano_inicio = st.number_input(
         "Ano de Início do Cultivo", min_value=2000, value=2024, step=1
     )
-    sistema = st.radio("Sistema de Cultivo", ["SAF", "Semi-intensivo"])
-    usar_modelo_linear = st.checkbox("Usar modelo linear para anos 1 e 2", value=True)
+    usar_modelo_linear = st.checkbox("Usar modelo linear para anos 1 e 2", value=False)
 
-    # Definir margem de lucro conforme o sistema de cultivo selecionado
-    if sistema == "SAF":
-        margem_lucro_liquido = 0.125  # 12.5% para SAF
-    else:
-        margem_lucro_liquido = 0.34  # 34% para semi-intensivo
+    # Seleção de percentual de cada sistema de cultivo
+    percentual_saf = st.slider(
+        "Percentual SAF (%)", min_value=0, max_value=100, value=50
+    )
+    percentual_semi_intensivo = 100 - percentual_saf
 
-# Coluna 2: Informações de mercado
+    # Definir a margem de lucro proporcional com base nos percentuais selecionados
+    margem_lucro_saf = 0.125  # 12.5% para SAF
+    margem_lucro_semi_intensivo = 0.34  # 34% para semi-intensivo
+    margem_lucro_liquida = (
+        percentual_saf / 100 * margem_lucro_saf
+        + percentual_semi_intensivo / 100 * margem_lucro_semi_intensivo
+    )
+
 with col2:
     st.subheader("Informações de Mercado")
     st.write("Preços de referência:")
@@ -294,14 +310,19 @@ with col2:
     st.write("- Fava curada (unidade): US$ 0.56")
     st.write("- Extrato de baunilha: US$ 135,435.20 por tonelada")
     st.write(
-        f"- Margem de lucro: {margem_lucro_liquido * 100:.2f}% do faturamento bruto"
+        f"- Margem de lucro: {margem_lucro_liquida * 100:.2f}% do faturamento bruto"
     )
 
 
 # Botão para gerar o plano de ação
 if st.button("Gerar Plano de Ação"):
     plano_acao, resultados_detalhados, taxa_crescimento, info = calcular_plano_acao(
-        num_mudas_inicial, num_mudas_total, anos_projecao, sistema, ano_inicio
+        num_mudas_inicial,
+        num_mudas_total,
+        anos_projecao,
+        percentual_saf,
+        percentual_semi_intensivo,
+        ano_inicio,
     )
 
     st.success(
